@@ -1,0 +1,14 @@
+{
+  "name": "odds-book",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal paper-betting odds book for PL + CL 2026/27",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "express": "^4.19.2"
+  }
+}

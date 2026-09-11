@@ -1,0 +1,4 @@
+.DS_Store
+node_modules/
+odds-book/data/data.json
+odds-book/data/data.json.tmp

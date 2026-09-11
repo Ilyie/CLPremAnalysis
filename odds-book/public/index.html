@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odds Book 26/27</title>
+<link rel="stylesheet" href="style.css">
+<script src="chart.umd.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">Odds Book <span>2026/27</span></div>
+  <div class="bank"><span id="bank-label">Bankroll</span><strong id="bank">—</strong><em id="bank-delta"></em></div>
+  <nav>
+    <button data-view="matches" class="on">Matches</button>
+    <button data-view="bets">Bets</button>
+    <button data-view="stats">Stats</button>
+    <button data-view="settings">Settings</button>
+  </nav>
+</header>
+
+<main>
+  <!-- MATCHES -->
+  <section id="view-matches" class="view on">
+    <div class="toolbar">
+      <div class="seg" id="comp-seg"><button data-comp="PL" class="on">Premier League</button><button data-comp="CL">Champions League</button></div>
+      <div class="seg" id="status-seg"><button data-status="upcoming" class="on">Upcoming</button><button data-status="live">In play</button><button data-status="finished">Finished</button><button data-status="all">All</button></div>
+      <button class="primary" id="btn-add-match">Add match</button>
+    </div>
+    <div id="match-list" class="match-list"></div>
+  </section>
+
+  <!-- BETS -->
+  <section id="view-bets" class="view">
+    <div class="toolbar"><div class="seg" id="bets-seg"><button data-f="open" class="on">Open</button><button data-f="settled">Settled</button><button data-f="all">All</button></div>
+      <a class="btn" href="/api/export.csv" download>Export CSV</a></div>
+    <table id="bets-table" class="table"><thead><tr><th>Placed</th><th>Match</th><th>Pick</th><th class="n">Stake</th><th class="n">Odds</th><th>Odds from</th><th class="n">Elo said</th><th class="n">You said</th><th>Result</th><th class="n">P&amp;L</th><th></th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <!-- STATS -->
+  <section id="view-stats" class="view">
+    <div class="kpis" id="kpis"></div>
+    <div class="chart-box"><canvas id="bank-chart" height="110"></canvas></div>
+    <div class="two">
+      <div><h3>By odds source</h3><table class="table" id="by-source"></table></div>
+      <div><h3>By pick type</h3><table class="table" id="by-pick"></table></div>
+    </div>
+    <div class="two">
+      <div><h3>Calibration — your probabilities</h3><p class="hint">Bets where you typed your own probability. In each bucket, how often did the pick actually land?</p><table class="table" id="calib"></table></div>
+      <div><h3>Who forecasts better?</h3><p class="hint">Brier score on settled bets: 0 is perfect, 0.25 is a coin flip on a 50/50. Lower wins.</p><table class="table" id="brier"></table></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="view-settings" class="view">
+    <div class="two">
+      <div class="card">
+        <h3>Model</h3>
+        <label>Starting bankroll <input type="number" id="s-bank" step="1"></label>
+        <label>Home advantage (Elo points) <input type="number" id="s-hfa" step="1"></label>
+        <label>Expected total goals per match <input type="number" id="s-goals" step="0.05"></label>
+        <label>Elo bookmaker margin (%) <input type="number" id="s-margin" step="0.5"></label>
+        <button class="primary" id="btn-save-settings">Save model settings</button>
+        <p class="hint">Changing these only affects new bets. Bets already placed keep the odds they were placed at.</p>
+      </div>
+      <div class="card">
+        <h3>Elo ratings</h3>
+        <p class="hint" id="elo-note"></p>
+        <div class="seg" id="elo-seg"><button data-comp="PL" class="on">Premier League</button><button data-comp="CL">Champions League</button></div>
+        <div id="elo-grid" class="elo-grid"></div>
+        <button class="primary" id="btn-save-elo">Save ratings</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Add match dialog -->
+<dialog id="dlg-match">
+  <form method="dialog" id="form-match">
+    <h3>Add match</h3>
+    <label>Competition <select id="m-comp"><option value="PL">Premier League</option><option value="CL">Champions League</option></select></label>
+    <label>Home <select id="m-home"></select></label>
+    <label>Away <select id="m-away"></select></label>
+    <label>Date <input type="date" id="m-date"></label>
+    <label>Round / matchweek <input type="text" id="m-round" placeholder="MW5"></label>
+    <div class="row"><button type="button" class="ghost" id="m-cancel">Cancel</button><button class="primary" value="ok">Add match</button></div>
+  </form>
+</dialog>
+
+<!-- Place bet dialog -->
+<dialog id="dlg-bet">
+  <form method="dialog" id="form-bet">
+    <h3 id="b-title">Place bet</h3>
+    <div class="probbar" id="b-probbar"></div>
+    <table class="table compact" id="b-odds"></table>
+    <fieldset class="picks" id="b-pick"></fieldset>
+    <label>Odds from
+      <select id="b-source"><option value="elo">Elo model (this tool is the bookmaker)</option><option value="book">Real bookmaker (type the odds)</option></select>
+    </label>
+    <div id="b-book-row" class="hidden">
+      <label>Bookmaker name <input type="text" id="b-bookname" placeholder="DraftKings"></label>
+      <div class="three">
+        <label>Home odds <input type="number" id="b-oh" step="0.01" min="1.01"></label>
+        <label>Draw odds <input type="number" id="b-od" step="0.01" min="1.01"></label>
+        <label>Away odds <input type="number" id="b-oa" step="0.01" min="1.01"></label>
+      </div>
+    </div>
+    <div class="three">
+      <label>Stake <input type="number" id="b-stake" step="1" min="1" value="10"></label>
+      <label>Your probability for the pick (%) <input type="number" id="b-myprob" step="1" min="1" max="99" placeholder="optional"></label>
+      <label>To win <input type="text" id="b-return" readonly></label>
+    </div>
+    <p class="hint" id="b-edge"></p>
+    <label>Note <input type="text" id="b-note" placeholder="why this bet?"></label>
+    <div class="row"><button type="button" class="ghost" id="b-cancel">Cancel</button><button class="primary" value="ok">Place bet</button></div>
+  </form>
+</dialog>
+
+<!-- Result dialog -->
+<dialog id="dlg-result">
+  <form method="dialog" id="form-result">
+    <h3 id="r-title">Final score</h3>
+    <div class="three"><label id="r-hl">Home <input type="number" id="r-hg" min="0" step="1" required></label><label id="r-al">Away <input type="number" id="r-ag" min="0" step="1" required></label></div>
+    <p class="hint">Saving settles every bet on this match and marks each one correct or incorrect.</p>
+    <div class="row"><button type="button" class="ghost" id="r-cancel">Cancel</button><button class="primary" value="ok">Save result</button></div>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

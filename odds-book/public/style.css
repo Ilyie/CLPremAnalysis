@@ -1,0 +1,51 @@
+:root { --paper:#F2F5EF; --ink:#14261C; --muted:#4E6255; --line:#D8E0DA; --green:#1F6B3F; --red:#B23A3A; --grey:#6B6B6B; --blue:#3F6BA6; --amber:#C9871B; }
+* { box-sizing:border-box }
+body { margin:0; font-family:"Helvetica Neue",Arial,sans-serif; background:var(--paper); color:var(--ink); font-variant-numeric:tabular-nums; }
+header { display:flex; align-items:center; gap:28px; padding:14px 24px; border-bottom:2px solid var(--ink); background:#fff; position:sticky; top:0; z-index:5; flex-wrap:wrap }
+.brand { font-size:20px; font-weight:700; letter-spacing:-.02em } .brand span { color:var(--muted); font-weight:400; margin-left:6px }
+.bank { display:flex; align-items:baseline; gap:8px } .bank span { color:var(--muted); font-size:13px } .bank strong { font-size:22px } .bank em { font-style:normal; font-size:13px }
+.pos { color:var(--green) } .neg { color:var(--red) }
+nav { margin-left:auto; display:flex; gap:4px } nav button { background:none; border:0; font:inherit; font-size:15px; padding:8px 12px; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent } nav button.on { color:var(--ink); font-weight:700; border-bottom-color:var(--ink) }
+main { padding:22px 24px 60px; max-width:1180px; margin:0 auto }
+.view { display:none } .view.on { display:block }
+.toolbar { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:18px }
+.seg { display:inline-flex; border:1.5px solid var(--ink); border-radius:999px; overflow:hidden } .seg button { background:none; border:0; font:inherit; font-size:14px; padding:6px 14px; cursor:pointer; color:var(--ink) } .seg button.on { background:var(--ink); color:var(--paper) }
+button.primary, a.btn { background:var(--green); color:#fff; border:0; border-radius:6px; padding:8px 14px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; text-decoration:none }
+button.ghost { background:none; border:1.5px solid var(--ink); border-radius:6px; padding:7px 13px; font:inherit; font-size:14px; cursor:pointer; color:var(--ink) }
+button.small { font-size:13px; padding:5px 10px }
+.match-list { display:grid; gap:10px }
+.match { background:#fff; border:1.5px solid var(--line); border-radius:10px; padding:12px 16px; display:grid; grid-template-columns: 110px 1fr 220px auto; gap:16px; align-items:center }
+@media (max-width:820px) { .match { grid-template-columns:1fr } }
+.match .meta { font-size:12px; color:var(--muted); line-height:1.5 }
+.match .teams { font-size:17px; font-weight:700 } .match .teams small { color:var(--muted); font-weight:400; margin:0 8px }
+.match .score { font-size:17px; font-weight:700; margin-left:10px }
+.match .status { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); margin-top:4px }
+.status.live { background:#FFF3D6; border-color:var(--amber); color:#6B4A00 } .status.finished { background:#E7F0EA; border-color:var(--green); color:var(--green) }
+.probbar { display:flex; height:26px; border-radius:6px; overflow:hidden; font-size:12px; font-weight:700; color:#fff } .probbar div { display:flex; align-items:center; justify-content:center; min-width:0; overflow:hidden; white-space:nowrap }
+.probbar .h { background:var(--green) } .probbar .d { background:var(--grey) } .probbar .a { background:var(--red) }
+.odds-line { font-size:12px; color:var(--muted); margin-top:4px; display:flex; justify-content:space-between }
+.match .actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end }
+.match .mybets { grid-column:1/-1; font-size:13px; color:var(--muted); border-top:1px dashed var(--line); padding-top:8px; display:flex; gap:14px; flex-wrap:wrap }
+.match .mybets .won { color:var(--green); font-weight:600 } .match .mybets .lost { color:var(--red); font-weight:600 }
+.table { width:100%; border-collapse:collapse; font-size:14px; background:#fff; border:1.5px solid var(--line); border-radius:8px; overflow:hidden }
+.table th { text-align:left; font-weight:600; color:var(--muted); padding:8px 10px; border-bottom:1.5px solid var(--ink); font-size:13px } .table td { padding:8px 10px; border-bottom:1px solid var(--line) }
+.table .n { text-align:right } .table.compact td, .table.compact th { padding:5px 8px }
+.table tr.won td:first-child { border-left:3px solid var(--green) } .table tr.lost td:first-child { border-left:3px solid var(--red) }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:18px }
+.kpi { background:#fff; border:1.5px solid var(--line); border-radius:8px; padding:12px 14px } .kpi span { font-size:12px; color:var(--muted); display:block } .kpi strong { font-size:22px }
+.chart-box { background:#fff; border:1.5px solid var(--line); border-radius:8px; padding:12px; margin-bottom:18px }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px } @media (max-width:820px) { .two { grid-template-columns:1fr } }
+.three { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px }
+h3 { margin:0 0 8px; font-size:16px } .hint { font-size:13px; color:var(--muted); line-height:1.5; margin:0 0 10px }
+.card { background:#fff; border:1.5px solid var(--line); border-radius:10px; padding:16px 18px }
+label { display:block; font-size:13px; color:var(--muted); margin:10px 0 }
+input, select { display:block; width:100%; margin-top:4px; font:inherit; font-size:15px; padding:7px 9px; border:1.5px solid #B9C6BC; border-radius:6px; background:#fff; color:var(--ink) }
+input[readonly] { background:var(--paper) }
+.elo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:6px 12px; margin:10px 0 14px } .elo-grid label { display:flex; align-items:center; gap:8px; margin:0; font-size:13px } .elo-grid input { width:80px; margin:0 } .elo-grid .ph { color:#8A5A00; font-size:11px }
+dialog { border:2px solid var(--ink); border-radius:12px; padding:20px 24px; width:min(560px,94vw); background:#fff } dialog::backdrop { background:rgba(20,38,28,.5) }
+dialog .row { display:flex; justify-content:flex-end; gap:8px; margin-top:16px }
+.picks { border:0; padding:0; margin:12px 0 4px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px }
+.picks label { margin:0; border:1.5px solid var(--line); border-radius:8px; padding:10px; text-align:center; cursor:pointer; color:var(--ink); font-size:14px } .picks label b { display:block; font-size:18px }
+.picks input { display:none } .picks label.on { border-color:var(--ink); background:var(--paper); box-shadow:inset 0 0 0 1px var(--ink) }
+.hidden { display:none }
+.empty { color:var(--muted); font-size:14px; padding:30px; text-align:center; border:1.5px dashed var(--line); border-radius:10px }
