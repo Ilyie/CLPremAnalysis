@@ -9,7 +9,7 @@
 
   /* ---------- fixture picker ---------- */
   function fillFixtures() {
-    const upcoming = data[state.comp].filter((m) => !m.played).slice(0, 80);
+    const upcoming = data[state.comp].filter((m) => !m.played);
     const sel = $("fixtureSel");
     sel.innerHTML = upcoming.map((m) => `<option value="${m.id}">${FM.fmtDate(m.date, { day: "numeric", month: "short" })} · ${m.home} v ${m.away}</option>`).join("");
     const mine = upcoming.find((m) => m.home === MY_TEAM || m.away === MY_TEAM);
@@ -40,9 +40,92 @@
         <div class="stat"><div class="k">Both teams score</div><div class="v">${FM.pct(p.btts)}</div><div class="s">fair ${FM.odds(p.fair.btts)}</div></div>
         <div class="stat"><div class="k">Double chance 1X / X2</div><div class="v">${FM.pct(p.H + p.D)} · ${FM.pct(p.A + p.D)}</div><div class="s">fair ${FM.odds(1 / (p.H + p.D))} · ${FM.odds(1 / (p.A + p.D))}</div></div>
       </div>`;
+    renderCompare(m, p);
+    renderMarkets(m, p);
     renderWhy(m, p);
     renderHeat(m, p);
     renderBook();
+    history.replaceState(null, "", `?comp=${state.comp}&match=${m.id}`);
+  }
+
+  /* ---------- team comparison ---------- */
+  const ord = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][Math.min(n % 10, 4)] || "th");
+  function teamLine(team, comp) {
+    const ms = data[comp].filter((x) => x.played && (x.home === team || x.away === team));
+    const tbl = FM.table(data[comp]); const pos = tbl.findIndex((r) => r.team === team) + 1, row = tbl[pos - 1];
+    const xg = ms.filter((x) => x.xgh != null); const xgf = xg.reduce((s, x) => s + (x.home === team ? x.xgh : x.xga), 0), xga = xg.reduce((s, x) => s + (x.home === team ? x.xga : x.xgh), 0);
+    const gf = ms.reduce((s, x) => s + (x.home === team ? x.hg : x.ag), 0), ga = ms.reduce((s, x) => s + (x.home === team ? x.ag : x.hg), 0);
+    return { pos, pts: row?.pts ?? 0, p: ms.length, form: formOf(team, comp), gf: ms.length ? gf / ms.length : 0, ga: ms.length ? ga / ms.length : 0, xgf: xg.length ? xgf / xg.length : null, xga: xg.length ? xga / xg.length : null, elo: ctx.elo[team] };
+  }
+  function renderCompare(m, p) {
+    const h = teamLine(m.home, state.comp), a = teamLine(m.away, state.comp), f = ctx.plModel, pl = state.comp === "pl";
+    const rows = [
+      ["Position · points", `${h.pos ? ord(h.pos) : "—"} · ${h.pts} pts`, `${a.pos ? ord(a.pos) : "—"} · ${a.pts} pts`, h.pts > a.pts, a.pts > h.pts],
+      ["Form (last 5)", `<span class="form">${h.form.map((x) => `<i class="${x}">${x}</i>`).join("")}</span>`, `<span class="form">${a.form.map((x) => `<i class="${x}">${x}</i>`).join("")}</span>`, false, false],
+      ["Elo rating", h.elo.toFixed(0), a.elo.toFixed(0), h.elo > a.elo, a.elo > h.elo],
+      ["Goals for / against per game", `${h.gf.toFixed(2)} / ${h.ga.toFixed(2)}`, `${a.gf.toFixed(2)} / ${a.ga.toFixed(2)}`, h.gf - h.ga > a.gf - a.ga, a.gf - a.ga > h.gf - h.ga],
+    ];
+    if (h.xgf != null && a.xgf != null) rows.push(["xG for / against per game", `${h.xgf.toFixed(2)} / ${h.xga.toFixed(2)}`, `${a.xgf.toFixed(2)} / ${a.xga.toFixed(2)}`, h.xgf - h.xga > a.xgf - a.xga, a.xgf - a.xga > h.xgf - h.xga]);
+    if (pl && f) rows.push(["Attack / defence index", `${f.att[m.home].toFixed(2)} / ${f.def[m.home].toFixed(2)}`, `${f.att[m.away].toFixed(2)} / ${f.def[m.away].toFixed(2)}`, f.att[m.home] / f.def[m.home] > f.att[m.away] / f.def[m.away], f.att[m.away] / f.def[m.away] > f.att[m.home] / f.def[m.home]]);
+    rows.push(["Model expected goals", p.lh.toFixed(2), p.la.toFixed(2), p.lh > p.la, p.la > p.lh]);
+    $("compareCard").innerHTML = `<h3>Head to head · this season${state.comp === "ucl" ? " (Champions League games only)" : ""}</h3><div class="compare">
+      <div class="l head">${m.home}</div><div class="lbl">vs</div><div class="r head">${m.away}</div>
+      ${rows.map(([k, l, r, lw, rw]) => `<div class="l ${lw ? "win" : ""}">${l}</div><div class="lbl">${k}</div><div class="r ${rw ? "win" : ""}">${r}</div>`).join("")}</div>`;
+  }
+
+  /* ---------- extra markets ---------- */
+  function renderMarkets(m, p) {
+    const row = (k, v) => `<div class="row"><span>${k}</span><b>${v}</b></div>`;
+    const ahRows = p.ah.map((a) => row(`${m.home} ${a.line > 0 ? "+" : ""}${a.line}`, `${FM.pct(a.win)}${a.push > 0.001 ? ` <span style="color:var(--faint)">(push ${FM.pct(a.push)})</span>` : ""} · ${FM.odds(a.fair)}`)).join("");
+    $("marketsCard").innerHTML = `<h3>More markets · probability · fair odds</h3><div class="market-grid">
+      <div class="market"><div class="k">Draw no bet</div>${row(m.home, `${FM.pct(p.dnbH)} · ${FM.odds(p.fair.dnbH)}`)}${row(m.away, `${FM.pct(p.dnbA)} · ${FM.odds(p.fair.dnbA)}`)}</div>
+      <div class="market"><div class="k">Clean sheet</div>${row(m.home, `${FM.pct(p.csH)} · ${FM.odds(p.fair.csH)}`)}${row(m.away, `${FM.pct(p.csA)} · ${FM.odds(p.fair.csA)}`)}</div>
+      <div class="market"><div class="k">Totals</div>${row("Over 1.5", FM.pct(p.over15))}${row("Over 2.5", `${FM.pct(p.over25)} · ${FM.odds(p.fair.over25)}`)}${row("Over 3.5", FM.pct(p.over35))}</div>
+      <div class="market" style="grid-column: 1 / -1"><div class="k">Asian handicap (home side) · win% · fair odds</div><div style="columns:2;column-gap:1rem">${ahRows}</div></div>
+      <div class="market" style="grid-column: 1 / -1"><div class="k">Correct score · top 10</div><div style="columns:2;column-gap:1rem">${p.topScores.map((s) => row(`${s.x} – ${s.y}`, `${FM.pct(s.p, 1)} · ${FM.odds(1 / s.p)}`)).join("")}</div></div>
+    </div><p class="note">Whole-number handicaps can push (stake returned), so their fair odds are 1 + P(lose)/P(win). Every market here comes from the same scoreline grid, so they can't contradict each other.</p>`;
+  }
+
+  /* ---------- this week: toss-ups and bankers ---------- */
+  function renderWeek() {
+    const now = new Date(), horizon = new Date(now.getTime() + 8 * 864e5);
+    const all = ["pl", "ucl"].flatMap((c) => data[c].filter((m) => !m.played && m.date >= now && m.date <= horizon).map((m) => { const p = FM.predict(m, c, ctx); return { m, c, p, ent: FM.entropy([p.H, p.D, p.A]), fav: Math.max(p.H, p.A) }; }));
+    const item = (x, label) => `<a href="?comp=${x.c}&match=${x.m.id}" data-comp="${x.c}" data-match="${x.m.id}"><span><b>${x.m.home} v ${x.m.away}</b><small>${x.c.toUpperCase()} · ${FM.fmtDate(x.m.date)}</small></span><span style="font-family:var(--mono);font-size:0.72rem">${label}</span></a>`;
+    $("tossups").innerHTML = all.length ? [...all].sort((a, b) => b.ent - a.ent).slice(0, 5).map((x) => item(x, `${FM.pct(x.p.H)} / ${FM.pct(x.p.D)} / ${FM.pct(x.p.A)}`)).join("") : '<p class="empty">No fixtures in the next 8 days.</p>';
+    $("bankers").innerHTML = all.length ? [...all].sort((a, b) => b.fav - a.fav).slice(0, 5).map((x) => item(x, `${x.p.H >= x.p.A ? x.m.home : x.m.away} ${FM.pct(x.fav)} · ${FM.odds(1 / x.fav)}`)).join("") : '<p class="empty">No fixtures in the next 8 days.</p>';
+    document.querySelectorAll("#tossups a, #bankers a").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); openMatch(a.dataset.comp, +a.dataset.match); window.scrollTo({ top: 0, behavior: "smooth" }); }));
+  }
+  function openMatch(comp, id) {
+    if (comp !== state.comp) { document.querySelector(`#compPills [data-comp="${comp}"]`).click(); }
+    if (data[state.comp].some((m) => m.id === id && !m.played)) { state.fixtureId = id; $("fixtureSel").value = id; renderMatch(); }
+  }
+
+  /* ---------- power rankings ---------- */
+  function renderPower() {
+    const rows = FM.powerRatings(ctx);
+    $("powerTable").innerHTML = `<table class="tbl"><thead><tr><th>#</th><th>Team</th><th>Comp</th><th>Off</th><th>Def</th><th>Rating</th><th>Elo</th><th>Source</th></tr></thead><tbody>${rows.map((r, i) => `<tr class="${r.team === MY_TEAM ? "mine" : ""}"><td>${i + 1}</td><td class="team">${r.team}</td><td style="font-family:var(--mono);font-size:0.66rem">${[r.pl && "PL", r.ucl && "UCL"].filter(Boolean).join("+")}</td><td>${r.off.toFixed(2)}</td><td>${r.def.toFixed(2)}</td><td class="pb"><span><b style="color:var(--text)">${(r.spi * 100).toFixed(1)}</b><span class="bar-mini" style="width:3.5rem"><i style="width:${(r.spi * 100).toFixed(0)}%"></i></span></span></td><td>${r.elo.toFixed(0)}</td><td style="font-family:var(--mono);font-size:0.62rem;color:var(--faint)">${r.source}</td></tr>`).join("")}</tbody></table>`;
+  }
+
+  /* ---------- backtest quality panel ---------- */
+  async function renderQuality() {
+    let res = null;
+    for (const f of ["backtest/results-2024-2025.json", "backtest/results-2025.json"]) { try { const r = await fetch(f); if (r.ok) { res = await r.json(); break; } } catch (e) {} }
+    if (!res) return;
+    const get = (v) => res.pooled.find((r) => r.variant === v);
+    const blend = get("blend") || get("blend-xg50"), goals = get("poisson-goals"), elo = get("elo"), home = get("home-prior");
+    const seasons = (res.seasons || [res.test]).map((s) => `${s}-${String(s + 1).slice(2)}`).join(" and ");
+    const stat = (k, v, s) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+    const gap = res.gaps?.xg;
+    $("qualityCard").innerHTML = `<h3>Backtest · Premier League ${seasons} · ${blend.n} matches, daily refits, no look-ahead</h3>
+      <div class="stat-grid">
+        ${stat("Production model RPS", blend.rps.toFixed(4), "ranked probability score, lower is better")}
+        ${stat("Accuracy", FM.pct(blend.acc, 1), "most likely outcome happened")}
+        ${stat("vs goals-only", goals ? (blend.rps - goals.rps).toFixed(4) : "—", gap ? `95% interval ${gap.lo.toFixed(4)} to ${gap.hi.toFixed(4)}` : "RPS difference")}
+        ${stat("vs Elo alone", elo ? (blend.rps - elo.rps).toFixed(4) : "—", "RPS difference")}
+        ${stat("vs home-prior baseline", home ? (blend.rps - home.rps).toFixed(4) : "—", "RPS difference")}
+        ${stat("Sportsbook closing line", "≈ 0.195", "published PL benchmark, not measured here")}
+      </div>
+      <p class="note">Read it like this: the market is about ${((blend.rps - 0.195) * 1000).toFixed(0)} thousandths of RPS better than this model, and the model is about ${((home.rps - blend.rps) * 1000).toFixed(0)} thousandths better than knowing nothing but home advantage. ${gap && gap.hi < 0 ? "The xG improvement is statistically clear." : gap ? "The xG improvement is real on average but its interval touches zero — more seasons needed to be sure." : ""} Full tables, calibration and monthly breakdown are in <code>backtest/</code>.</p>`;
   }
 
   function formOf(team, comp) {
@@ -116,8 +199,16 @@
     const ucl = FM.simulate(data.ucl, "ucl", ctx, runs, [{ key: "top8", from: 1, to: 8 }, { key: "po", from: 9, to: 24 }, { key: "out", from: 25, to: 36 }]);
     $("simUCL").innerHTML = simTable(ucl, [{ key: "top8", label: "Top 8" }, { key: "po", label: "Play-off" }, { key: "out", label: "Out" }],
       [{ cls: "zone-a", from: 1, to: 8 }, { cls: "zone-b", from: 9, to: 24 }, { cls: "zone-c", from: 25, to: 36 }]);
+    renderPosDist(pl);
     $("simNote").textContent = `${runs.toLocaleString()} seasons in ${((performance.now() - t0) / 1000).toFixed(1)}s. Sorted by average finishing position. xPts = mean final points.`;
     btn.disabled = false;
+  }
+
+  function renderPosDist(rows) {
+    const n = rows.length;
+    let html = `<div class="posdist" style="grid-template-columns: 7.5rem repeat(${n}, 1fr)"><div></div>${Array.from({ length: n }, (_, i) => `<div class="hd">${i + 1}</div>`).join("")}`;
+    rows.forEach((r) => { html += `<div class="lbl">${r.team}</div>` + r.posDist.map((p, i) => { const a = Math.min(1, p / 0.5); const col = i < 4 ? "56,189,248" : i >= n - 3 ? "255,61,78" : "255,138,43"; return `<div class="cell" style="background:rgba(${col},${(0.05 + 0.85 * a).toFixed(2)})" title="${r.team} ${i + 1}: ${FM.pct(p, 1)}">${p >= 0.05 ? Math.round(p * 100) : ""}</div>`; }).join(""); });
+    $("posDistCard").innerHTML = `<h3>Where each Premier League team finishes · % of simulations by position</h3>${html}</div><p class="note">Blue = Champions League places, red = relegation. Cells under 5% are left blank.</p>`;
   }
 
   /* ---------- ratings tables ---------- */
@@ -165,5 +256,9 @@
   ["oddsH", "oddsD", "oddsA"].forEach((id) => $(id).addEventListener("input", renderBook));
   $("runSim").addEventListener("click", runSim);
 
-  fillFixtures(); renderMatch(); renderRatings(); renderMethod();
+  const params = new URLSearchParams(location.search);
+  if (params.get("comp") === "ucl") { document.querySelectorAll("#compPills .pill").forEach((x) => x.classList.toggle("on", x.dataset.comp === "ucl")); state.comp = "ucl"; }
+  fillFixtures();
+  if (params.get("match") && data[state.comp].some((m) => m.id === +params.get("match") && !m.played)) { state.fixtureId = +params.get("match"); $("fixtureSel").value = state.fixtureId; }
+  renderMatch(); renderWeek(); renderPower(); renderRatings(); renderMethod(); renderQuality();
 })();

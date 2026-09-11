@@ -32,7 +32,7 @@ const FM = (() => {
       maxGoals: 10,      // scoreline grid size; P(>10 goals) is negligible
       xgBlend: 0.5,      // share of the fitted "goal signal" taken from xG when Understat data is attached (0 = goals only, 1 = xG only)
     },
-    blend: { plPoissonWeight: 0.6 }, // PL: 60% fitted Poisson, 40% Elo. UCL: 100% Elo (see analysis notes)
+    blend: { plPoissonWeight: 0.8 }, // PL: 80% fitted Poisson, 20% Elo — tuned on 2024-26 (was 60/40; see backtest/tuning.md). UCL: 100% Elo
     sim: { defaultRuns: 5000 },
   };
 
@@ -72,14 +72,17 @@ const FM = (() => {
     cache[path] = data;
     return data;
   }
+  // fixturedownload.com is not consistent about club names across seasons; map every spelling to one canonical form.
+  const FEED_NAME_MAP = { "Nottingham Forest": "Nott'm Forest", "Sheffield Utd": "Sheffield United", "Manchester United": "Man Utd", "Manchester City": "Man City", "Tottenham": "Spurs", "Newcastle United": "Newcastle", "Wolverhampton Wanderers": "Wolves" };
+  const canon = (t) => FEED_NAME_MAP[t] || t;
   function normalise(m) {
     return {
       id: m.MatchNumber,
       round: m.RoundNumber,
       date: new Date(m.DateUtc.replace(" ", "T")),
       venue: m.Location,
-      home: m.HomeTeam,
-      away: m.AwayTeam,
+      home: canon(m.HomeTeam),
+      away: canon(m.AwayTeam),
       hg: m.HomeTeamScore,
       ag: m.AwayTeamScore,
       played: m.HomeTeamScore !== null && m.AwayTeamScore !== null,
@@ -253,17 +256,26 @@ const FM = (() => {
     return grid;
   }
   function marketsFromGrid(grid) {
-    let H = 0, D = 0, A = 0, over25 = 0, btts = 0, over15 = 0, over35 = 0;
-    const scores = [];
+    let H = 0, D = 0, A = 0, over25 = 0, btts = 0, over15 = 0, over35 = 0, csH = 0, csA = 0;
+    const scores = [], margin = {}; // margin[k] = P(home goals - away goals = k)
     grid.forEach((row, x) => row.forEach((p, y) => {
       if (x > y) H += p; else if (x < y) A += p; else D += p;
       if (x + y > 2.5) over25 += p; if (x + y > 1.5) over15 += p; if (x + y > 3.5) over35 += p;
       if (x > 0 && y > 0) btts += p;
+      if (y === 0) csH += p; if (x === 0) csA += p;
+      margin[x - y] = (margin[x - y] || 0) + p;
       scores.push({ x, y, p });
     }));
     scores.sort((a, b) => b.p - a.p);
-    return { H, D, A, over25, under25: 1 - over25, over15, over35, btts, topScores: scores.slice(0, 6),
-             fair: { H: 1 / H, D: 1 / D, A: 1 / A, over25: 1 / over25, under25: 1 / (1 - over25), btts: 1 / btts } };
+    // Asian handicap on the home side: whole lines can push (stake returned), half lines cannot.
+    const ah = [-1.5, -1, -0.5, 0, 0.5, 1, 1.5].map((line) => {
+      let win = 0, push = 0, lose = 0;
+      Object.entries(margin).forEach(([k, p]) => { const adj = +k + line; if (adj > 0) win += p; else if (adj === 0) push += p; else lose += p; });
+      return { line, win, push, lose, fair: 1 + lose / win }; // EV = 0 ⇒ odds = 1 + P(lose)/P(win)
+    });
+    const dnbH = H / (H + A), dnbA = A / (H + A);
+    return { H, D, A, over25, under25: 1 - over25, over15, over35, btts, csH, csA, dnbH, dnbA, ah, topScores: scores.slice(0, 10),
+             fair: { H: 1 / H, D: 1 / D, A: 1 / A, over25: 1 / over25, under25: 1 / (1 - over25), btts: 1 / btts, dnbH: 1 / dnbH, dnbA: 1 / dnbA, csH: 1 / csH, csA: 1 / csA } };
   }
 
   /**
@@ -286,6 +298,48 @@ const FM = (() => {
     return { match: m, comp, lh, la, grid, ...mk, eloH, eloA, eloDiff: eloH + CONFIG.elo.homeAdv - eloA,
              eloWinExp: eloExpected(eloH + CONFIG.elo.homeAdv - eloA), eloLambdas: e, poissonLambdas: poisson, poissonWeight: wP };
   }
+
+  /* ---------- 5c. Power ratings (SPI-style) ---------- */
+  /**
+   * Offence = expected goals against an average side on a neutral pitch; defence = expected goals conceded.
+   * Overall = share of available points expected against an average side (FiveThirtyEight's SPI definition).
+   * PL teams use the fitted attack/defence; everyone else uses Elo alone (no home advantage).
+   */
+  function powerRatings(ctx) {
+    const teams = new Map();
+    const plTeams = ctx.plModel ? ctx.plModel.teams.filter((t) => teamsOf(ctx.data.pl).includes(t)) : [];
+    const uclTeams = teamsOf(ctx.data.ucl);
+    const fieldElo = [...new Set([...plTeams, ...uclTeams])].reduce((s, t) => s + (ctx.elo[t] || 1500), 0) / new Set([...plTeams, ...uclTeams]).size;
+    const spiOf = (lh, la) => { const k = marketsFromGrid(scoreGrid(lh, la)); return (3 * k.H + k.D) / 3; };
+    for (const t of new Set([...plTeams, ...uclTeams])) {
+      let off, def, source;
+      if (plTeams.includes(t)) { const f = ctx.plModel; off = f.mu * f.att[t]; def = f.mu * f.def[t]; source = "goal model"; }
+      else { const dr = (ctx.elo[t] || 1500) - fieldElo, sup = dr * CONFIG.elo.goalsPerPoint, T = ctx.avgTotal.ucl; off = Math.max(0.15, (T + sup) / 2); def = Math.max(0.15, (T - sup) / 2); source = "elo"; }
+      teams.set(t, { team: t, off, def, spi: spiOf(off, def), elo: ctx.elo[t], source, pl: plTeams.includes(t), ucl: uclTeams.includes(t) });
+    }
+    return [...teams.values()].sort((a, b) => b.spi - a.spi);
+  }
+
+  /* ---------- 5d. xG table (Understat-style) ---------- */
+  /** Expected points per played match from its xG, via the same scoreline grid the predictions use. */
+  function xgTable(matches, teams) {
+    const rows = Object.fromEntries((teams || teamsOf(matches)).map((t) => [t, { team: t, p: 0, pts: 0, gf: 0, ga: 0, xg: 0, xga: 0, xpts: 0, withXG: 0 }]));
+    for (const m of matches) {
+      if (!m.played) continue;
+      const h = rows[m.home], a = rows[m.away];
+      h.p++; a.p++; h.gf += m.hg; h.ga += m.ag; a.gf += m.ag; a.ga += m.hg;
+      if (m.hg > m.ag) h.pts += 3; else if (m.hg < m.ag) a.pts += 3; else { h.pts++; a.pts++; }
+      if (m.xgh != null) {
+        const k = marketsFromGrid(scoreGrid(Math.max(0.05, m.xgh), Math.max(0.05, m.xga)));
+        h.xg += m.xgh; h.xga += m.xga; a.xg += m.xga; a.xga += m.xgh;
+        h.xpts += 3 * k.H + k.D; a.xpts += 3 * k.A + k.D; h.withXG++; a.withXG++;
+      }
+    }
+    return Object.values(rows).map((r) => ({ ...r, gd: r.gf - r.ga, xgd: r.xg - r.xga, luck: r.pts - r.xpts })).sort((a, b) => b.xpts - a.xpts || b.xgd - a.xgd);
+  }
+
+  /** Shannon entropy of an outcome distribution in bits — 1.585 is a pure coin-toss between three outcomes. */
+  const entropy = (ps) => -ps.reduce((s, p) => s + (p > 0 ? p * Math.log2(p) : 0), 0);
 
   /* ---------- 6. Bookmaker maths ---------- */
   /** decimal odds → implied probabilities, overround, and vig-free (multiplicative normalisation) */
@@ -373,6 +427,6 @@ const FM = (() => {
   const odds = (o) => (o >= 100 ? o.toFixed(0) : o.toFixed(2));
   const fmtDate = (d, opts) => d.toLocaleString(undefined, opts || { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-  return { CONFIG, SEED_ELO, PROMOTED_2026, loadAll, loadJSON, loadXG, attachXG, normalise, teamsOf, table, computeElo, fitPoisson, buildPLModel, predict, bookmaker, edge, simulate, buildContext, pct, odds, fmtDate, eloExpected, eloLambdas, scoreGrid, marketsFromGrid };
+  return { CONFIG, SEED_ELO, PROMOTED_2026, loadAll, loadJSON, loadXG, attachXG, normalise, teamsOf, table, computeElo, fitPoisson, buildPLModel, predict, bookmaker, edge, simulate, buildContext, pct, odds, fmtDate, eloExpected, eloLambdas, scoreGrid, marketsFromGrid, powerRatings, xgTable, entropy };
 })();
 if (typeof module !== "undefined") module.exports = FM;
