@@ -46,6 +46,7 @@
     <div class="grid-2">
       <div>
         <div class="card" id="matchCard"></div>
+        <div class="card" style="margin-top:1.2rem" id="compareCard"></div>
         <div class="card" style="margin-top:1.2rem" id="whyCard"></div>
       </div>
       <div>
@@ -59,8 +60,15 @@
           </div>
           <div id="bookOut" style="margin-top:1rem"></div>
         </div>
+        <div class="card" style="margin-top:1.2rem" id="marketsCard"></div>
         <div class="card" style="margin-top:1.2rem" id="heatCard"></div>
       </div>
+    </div>
+
+    <h2 class="section-h">// 01b · This week</h2>
+    <div class="grid-2" style="grid-template-columns: 1fr 1fr">
+      <div class="card"><h3>Toss-ups · hardest to call</h3><div class="upset" id="tossups"></div></div>
+      <div class="card"><h3>Bankers · biggest favourites</h3><div class="upset" id="bankers"></div></div>
     </div>
 
     <!-- ============ 2. Season simulation ============ -->
@@ -80,14 +88,22 @@
       <div class="card"><h3>Premier League · 2026-27</h3><div class="tbl-wrap" id="simPL"><p class="empty">Press run.</p></div></div>
       <div class="card"><h3>Champions League · league phase</h3><div class="tbl-wrap" id="simUCL"><p class="empty">Press run.</p></div></div>
     </div>
+    <div class="card" style="margin-top:1.2rem" id="posDistCard"><h3>Where each Premier League team finishes · probability by position</h3><p class="empty">Run the simulation to see the full distribution.</p></div>
 
     <!-- ============ 3. Ratings ============ -->
-    <h2 class="section-h">// 03 · Current ratings</h2>
+    <h2 class="section-h">// 03 · Power rankings &amp; ratings</h2>
+    <div class="card" style="margin-bottom:1.2rem"><h3>Power rankings · every PL and UCL club on one scale</h3>
+      <p class="note" style="margin:0 0 0.8rem">Offence = goals expected against an average club on a neutral pitch; defence = goals expected to concede. Rating = share of available points expected against that average club, the same definition FiveThirtyEight's SPI used. Premier League clubs are rated from the goal model; everyone else from Elo.</p>
+      <div class="tbl-wrap" id="powerTable"></div></div>
     <div class="grid-2" style="grid-template-columns: 1fr 1fr">
       <div class="card"><h3>Elo ratings (seed + 2026-27 results)</h3><div class="tbl-wrap" id="eloTable"></div></div>
       <div class="card"><h3>Premier League attack / defence (Poisson fit)</h3><div class="tbl-wrap" id="adTable"></div>
         <p class="note">Attack &gt; 1.00 scores more than an average side; defence &lt; 1.00 concedes less. Fitted on 2025-26 plus this season, recent games weighted more.</p></div>
     </div>
+
+    <!-- ============ 3b. How good is it ============ -->
+    <h2 class="section-h">// 03b · How good is this model?</h2>
+    <div class="card" id="qualityCard"><p class="empty">Backtest results not found — run <code>node scripts/backtest.js 2024 2025</code>.</p></div>
 
     <!-- ============ 4. Methodology ============ -->
     <h2 class="section-h">// 04 · Methodology — the decisions, and why</h2>

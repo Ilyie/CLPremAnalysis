@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fixtures — Premier League & Champions League 2026-27</title>
-  <meta name="description" content="Remaining Premier League and Champions League fixtures for 2026-27, with live tables built from results." />
+  <meta name="description" content="Remaining Premier League and Champions League fixtures for 2026-27 with model win probabilities, live tables and an xG table." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -28,14 +28,16 @@
 
     <h1 class="page-title">Fixtures</h1>
     <p class="page-sub">
-      Every remaining Premier League and Champions League league-phase match for 2026-27, in your local time.
-      Arsenal games are highlighted because, well, see the home page. Tables are computed from the results in the data, not copied from anywhere.
+      Every remaining Premier League and Champions League league-phase match in your local time, each with the model's win probabilities.
+      Click a match to open its full analysis. Tables are computed from results; the xG table shows who has earned their points.
     </p>
 
     <div class="pill-row" id="compPills" role="tablist">
       <button class="pill on" data-comp="pl" role="tab">Premier League</button>
       <button class="pill pill-ucl" data-comp="ucl" role="tab">Champions League</button>
     </div>
+
+    <div class="week-strip" id="weekStrip"></div>
 
     <div class="controls">
       <label class="field">Team
@@ -48,18 +50,20 @@
           <option value="all">Everything</option>
         </select>
       </label>
-      <span class="note" id="snapshotNote"></span>
+      <button class="btn btn-ghost ics-btn" id="icsBtn" title="Download an .ics calendar of the fixtures shown">Add to calendar</button>
     </div>
+    <div class="round-nav" id="roundNav"></div>
 
     <div class="grid-2">
       <div id="fixtureList"></div>
       <aside class="sticky">
         <div class="card">
+          <div class="tbl-toggle" id="tblToggle"><button class="on" data-view="table">Table</button><button data-view="xg">xG table</button></div>
           <h3 id="tableTitle">Table</h3>
           <div class="tbl-wrap" id="tableWrap"></div>
           <div class="legend" id="tableLegend"></div>
         </div>
-        <p class="note">Want win probabilities and fair odds for any of these? Open the <a href="analysis.html" style="color:var(--orange)">analysis page</a>.</p>
+        <p class="note" id="snapshotNote"></p>
       </aside>
     </div>
   </div>
