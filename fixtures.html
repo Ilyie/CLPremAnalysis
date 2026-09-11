@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fixtures — Premier League & Champions League 2026-27</title>
+  <meta name="description" content="Remaining Premier League and Champions League fixtures for 2026-27, with live tables built from results." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="football.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>" />
+</head>
+<body>
+  <div class="orb orb-a" aria-hidden="true"></div>
+  <div class="orb orb-b" aria-hidden="true"></div>
+
+  <div class="page">
+    <div class="topbar">
+      <a class="brand" href="index.html"><span class="monogram">IK</span> CLPremAnalysis</a>
+      <nav class="topnav" aria-label="Pages">
+        <a href="index.html">Home</a>
+        <a href="fixtures.html" class="current">Fixtures</a>
+        <a href="analysis.html">Analysis</a>
+      </nav>
+    </div>
+
+    <h1 class="page-title">Fixtures</h1>
+    <p class="page-sub">
+      Every remaining Premier League and Champions League league-phase match for 2026-27, in your local time.
+      Arsenal games are highlighted because, well, see the home page. Tables are computed from the results in the data, not copied from anywhere.
+    </p>
+
+    <div class="pill-row" id="compPills" role="tablist">
+      <button class="pill on" data-comp="pl" role="tab">Premier League</button>
+      <button class="pill pill-ucl" data-comp="ucl" role="tab">Champions League</button>
+    </div>
+
+    <div class="controls">
+      <label class="field">Team
+        <select id="teamFilter"><option value="">All teams</option></select>
+      </label>
+      <label class="field">Show
+        <select id="showFilter">
+          <option value="upcoming">Remaining fixtures</option>
+          <option value="results">Results so far</option>
+          <option value="all">Everything</option>
+        </select>
+      </label>
+      <span class="note" id="snapshotNote"></span>
+    </div>
+
+    <div class="grid-2">
+      <div id="fixtureList"></div>
+      <aside class="sticky">
+        <div class="card">
+          <h3 id="tableTitle">Table</h3>
+          <div class="tbl-wrap" id="tableWrap"></div>
+          <div class="legend" id="tableLegend"></div>
+        </div>
+        <p class="note">Want win probabilities and fair odds for any of these? Open the <a href="analysis.html" style="color:var(--orange)">analysis page</a>.</p>
+      </aside>
+    </div>
+  </div>
+
+  <script src="models.js"></script>
+  <script src="fixtures.js"></script>
+</body>
+</html>

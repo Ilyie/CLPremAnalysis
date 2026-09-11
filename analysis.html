@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Match Analysis — probabilities, fair odds & season simulation</title>
+  <meta name="description" content="Premier League and Champions League match analysis: implied probabilities, vig-free fair odds, Dixon-Coles Poisson scorelines, Elo ratings and Monte Carlo season simulations, with every modelling decision explained." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="football.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+</head>
+<body>
+  <div class="orb orb-a" aria-hidden="true"></div>
+  <div class="orb orb-b" aria-hidden="true"></div>
+
+  <div class="page">
+    <div class="topbar">
+      <a class="brand" href="index.html"><span class="monogram">IK</span> CLPremAnalysis</a>
+      <nav class="topnav" aria-label="Pages">
+        <a href="index.html">Home</a>
+        <a href="fixtures.html">Fixtures</a>
+        <a href="analysis.html" class="current">Analysis</a>
+      </nav>
+    </div>
+
+    <h1 class="page-title">Match Analysis</h1>
+    <p class="page-sub">
+      The metric every sportsbook runs on is <strong style="color:var(--text)">implied probability</strong> — a price is just a probability with a margin baked in.
+      This page builds its own probabilities from ratings and a scoreline model, turns them into fair odds, lets you check a bookmaker's price for an edge,
+      and simulates the rest of the season thousands of times. Every number has a reason, and the reasons are written down below.
+    </p>
+
+    <!-- ============ 1. Single match ============ -->
+    <h2 class="section-h">// 01 · Single match</h2>
+    <div class="pill-row" id="compPills">
+      <button class="pill on" data-comp="pl">Premier League</button>
+      <button class="pill pill-ucl" data-comp="ucl">Champions League</button>
+    </div>
+    <div class="controls">
+      <label class="field">Fixture <select id="fixtureSel" class="fixture-select"></select></label>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="card" id="matchCard"></div>
+        <div class="card" style="margin-top:1.2rem" id="whyCard"></div>
+      </div>
+      <div>
+        <div class="card" id="bookCard">
+          <h3>Check a bookmaker's price</h3>
+          <p class="note" style="margin-top:0">Type the decimal odds a sportsbook is offering for this match. The page strips the margin (overround) and compares the book's real opinion to the model.</p>
+          <div class="book-grid" style="margin-top:0.9rem">
+            <label class="field">Home <input type="number" step="0.01" min="1.01" id="oddsH" placeholder="e.g. 1.85"></label>
+            <label class="field">Draw <input type="number" step="0.01" min="1.01" id="oddsD" placeholder="e.g. 3.60"></label>
+            <label class="field">Away <input type="number" step="0.01" min="1.01" id="oddsA" placeholder="e.g. 4.20"></label>
+          </div>
+          <div id="bookOut" style="margin-top:1rem"></div>
+        </div>
+        <div class="card" style="margin-top:1.2rem" id="heatCard"></div>
+      </div>
+    </div>
+
+    <!-- ============ 2. Season simulation ============ -->
+    <h2 class="section-h">// 02 · Season simulation</h2>
+    <p class="page-sub" style="margin-top:-0.4rem">
+      Every remaining fixture is sampled from its own scoreline distribution, the table is ranked, and that's repeated thousands of times.
+      The percentages are simply how often each outcome happened.
+    </p>
+    <div class="controls">
+      <label class="field">Simulations
+        <select id="simRuns"><option value="2000">2,000 (fast)</option><option value="5000" selected>5,000</option><option value="20000">20,000 (precise)</option></select>
+      </label>
+      <button class="btn" id="runSim">Run simulation</button>
+      <span class="note" id="simNote"></span>
+    </div>
+    <div class="grid-2" style="grid-template-columns: 1fr 1fr">
+      <div class="card"><h3>Premier League · 2026-27</h3><div class="tbl-wrap" id="simPL"><p class="empty">Press run.</p></div></div>
+      <div class="card"><h3>Champions League · league phase</h3><div class="tbl-wrap" id="simUCL"><p class="empty">Press run.</p></div></div>
+    </div>
+
+    <!-- ============ 3. Ratings ============ -->
+    <h2 class="section-h">// 03 · Current ratings</h2>
+    <div class="grid-2" style="grid-template-columns: 1fr 1fr">
+      <div class="card"><h3>Elo ratings (seed + 2026-27 results)</h3><div class="tbl-wrap" id="eloTable"></div></div>
+      <div class="card"><h3>Premier League attack / defence (Poisson fit)</h3><div class="tbl-wrap" id="adTable"></div>
+        <p class="note">Attack &gt; 1.00 scores more than an average side; defence &lt; 1.00 concedes less. Fitted on 2025-26 plus this season, recent games weighted more.</p></div>
+    </div>
+
+    <!-- ============ 4. Methodology ============ -->
+    <h2 class="section-h">// 04 · Methodology — the decisions, and why</h2>
+    <div class="card method" id="method"></div>
+  </div>
+
+  <script src="models.js"></script>
+  <script src="analysis.js"></script>
+</body>
+</html>

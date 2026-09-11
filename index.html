@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLPremAnalysis — PL & UCL 2026-27 prediction models</title>
+  <meta name="description" content="Prediction models for the 2026-27 Premier League and Champions League: fixtures, implied probabilities, fair odds, Dixon-Coles Poisson scorelines, Elo and Monte Carlo season simulation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="football.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>" />
+</head>
+<body>
+  <div class="orb orb-a" aria-hidden="true"></div>
+  <div class="orb orb-b" aria-hidden="true"></div>
+  <div class="page">
+    <div class="topbar">
+      <a class="brand" href="index.html"><span class="monogram">IK</span> CLPremAnalysis</a>
+      <nav class="topnav" aria-label="Pages">
+        <a href="index.html" class="current">Home</a>
+        <a href="fixtures.html">Fixtures</a>
+        <a href="analysis.html">Analysis</a>
+      </nav>
+    </div>
+    <h1 class="page-title">Prediction models for the<br />2026-27 Premier League &amp; Champions League</h1>
+    <p class="page-sub">
+      Two pages, one model engine, no frameworks. Fixtures and live tables on one side; implied probabilities, vig-free fair odds,
+      Dixon-Coles scorelines, Elo ratings, a bookmaker edge check and a Monte Carlo season simulation on the other — with every modelling decision written down.
+    </p>
+    <div class="grid-2" style="margin-top:2.4rem">
+      <a class="card" href="fixtures.html" style="text-decoration:none;display:block">
+        <h3>01 · Fixtures</h3>
+        <p style="font-family:var(--display);font-size:1.3rem;font-weight:600;color:var(--text)">Every remaining match, in your local time</p>
+        <p class="note">Premier League matchweeks 4–38 and Champions League matchdays 2–8, filterable by team, with tables computed from results.</p>
+      </a>
+      <a class="card" href="analysis.html" style="text-decoration:none;display:block">
+        <h3>02 · Analysis</h3>
+        <p style="font-family:var(--display);font-size:1.3rem;font-weight:600;color:var(--text)">Probabilities, fair odds, simulations</p>
+        <p class="note">Pick a fixture, get the full market from one scoreline grid, paste a sportsbook's price to strip the overround, and simulate the season 20,000 times.</p>
+      </a>
+    </div>
+    <p class="note" style="margin-top:2rem">Built by <a href="https://github.com/Ilyie" style="color:var(--orange)">Ilyas Khamliche</a>. Data: fixturedownload.com snapshots in <code>/data</code> — run <code>./refresh-data.sh</code> to update.</p>
+  </div>
+</body>
+</html>
