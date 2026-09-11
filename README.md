@@ -33,6 +33,11 @@ Then open http://localhost:8199. (Any static server works; the pages load `data/
 
 The full reasoning for each constant is in the Methodology section of `analysis.html`.
 
+## Also in this repo
+
+- `odds-book/` — a local paper-betting tracker (Express + Chart.js). Place fake-money bets at Elo or bookmaker odds, enter results, compare calibration and Brier scores. See its own README. Your personal `odds-book/data/data.json` is git-ignored.
+- `Elo_odds_book.jsx` — a React/Recharts strategy simulator: how favourite, underdog, draw, home, value and Kelly strategies perform over a season against a noisy bookmaker.
+
 ## Refresh the data
 
 ```bash
