@@ -30,6 +30,7 @@ const FM = (() => {
       iterations: 60,    // alternating MLE updates — converges well before this
       rho: -0.10,        // Dixon-Coles low-score correction (draws at 0-0/1-1 are under-predicted by plain Poisson)
       maxGoals: 10,      // scoreline grid size; P(>10 goals) is negligible
+      xgBlend: 0.5,      // share of the fitted "goal signal" taken from xG when Understat data is attached (0 = goals only, 1 = xG only)
     },
     blend: { plPoissonWeight: 0.6 }, // PL: 60% fitted Poisson, 40% Elo. UCL: 100% Elo (see analysis notes)
     sim: { defaultRuns: 5000 },
@@ -99,6 +100,26 @@ const FM = (() => {
   }
   const teamsOf = (matches) => [...new Set(matches.flatMap((m) => [m.home, m.away]))].sort();
 
+  /** Optional Understat xG files (data/xg-epl-<season>.json from scripts/fetch_understat.py). Missing files are fine. */
+  async function loadXG(seasons) {
+    const out = [];
+    for (const s of seasons) {
+      try { const rows = await loadJSON(`data/xg-epl-${s}.json`); out.push(...rows); } catch (e) { /* not fetched yet */ }
+    }
+    return out;
+  }
+  /** Join xG rows onto feed matches by (home, away, same calendar day). Mutates matches: adds xgh/xga/forecast. Returns count joined. */
+  function attachXG(matches, xgRows) {
+    const key = (h, a, d) => `${h}|${a}|${d.toISOString().slice(0, 10)}`;
+    const idx = new Map(xgRows.filter((r) => r.xgh != null).map((r) => [key(r.home, r.away, new Date(r.date)), r]));
+    let n = 0;
+    for (const m of matches) {
+      const r = idx.get(key(m.home, m.away, m.date));
+      if (r) { m.xgh = r.xgh; m.xga = r.xga; if (r.forecast) m.forecast = r.forecast; n++; }
+    }
+    return n;
+  }
+
   /* ---------- 3. League tables ---------- */
   function table(matches, teams) {
     const rows = Object.fromEntries((teams || teamsOf(matches)).map((t) => [t, { team: t, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, form: [] }]));
@@ -140,9 +161,14 @@ const FM = (() => {
    * by weighted alternating MLE. Weights decay with age (half-life CONFIG.poisson.halfLifeDays).
    * priors: {team: {att, def}} pseudo-observations for teams with little data.
    */
-  function fitPoisson(matches, asOf, priors = {}) {
+  function fitPoisson(matches, asOf, priors = {}, xgBlend = CONFIG.poisson.xgBlend) {
     const played = matches.filter((m) => m.played);
-    const teams = teamsOf(played);
+    // "Goal signal": goals, xG, or a blend. xG is less noisy than goals (a 1-0 win off one deflection is still a bad performance).
+    const sig = played.map((m) => (m.xgh != null && xgBlend > 0)
+      ? { h: (1 - xgBlend) * m.hg + xgBlend * m.xgh, a: (1 - xgBlend) * m.ag + xgBlend * m.xga }
+      : { h: m.hg, a: m.ag });
+    let xgMatches = 0; played.forEach((m) => { if (m.xgh != null) xgMatches++; });
+    const teams = [...new Set([...teamsOf(played), ...Object.keys(priors)])].sort(); // a team with a prior but no games yet still gets a rating
     const xi = Math.LN2 / CONFIG.poisson.halfLifeDays;
     const w = played.map((m) => Math.exp(-xi * Math.max(0, (asOf - m.date) / 864e5)));
     const n0 = CONFIG.poisson.priorMatches;
@@ -150,7 +176,7 @@ const FM = (() => {
     const att = {}, def = {};
     teams.forEach((t) => { att[t] = 1; def[t] = 1; });
     const sumW = w.reduce((a, b) => a + b, 0);
-    const mu = played.reduce((s, m, i) => s + w[i] * (m.hg + m.ag), 0) / (2 * sumW); // avg goals per team per game
+    const mu = played.reduce((s, m, i) => s + w[i] * (sig[i].h + sig[i].a), 0) / (2 * sumW); // avg goal signal per team per game
     let H = 1.1; // home multiplier, re-estimated each iteration
 
     for (let it = 0; it < CONFIG.poisson.iterations; it++) {
@@ -158,39 +184,39 @@ const FM = (() => {
       const num = {}, den = {};
       teams.forEach((t) => { const p = priors[t] || { att: 1, def: 1 }; num[t] = n0 * p.att; den[t] = n0; });
       played.forEach((m, i) => {
-        num[m.home] += w[i] * m.hg; den[m.home] += w[i] * mu * H * def[m.away];
-        num[m.away] += w[i] * m.ag; den[m.away] += w[i] * mu * def[m.home];
+        num[m.home] += w[i] * sig[i].h; den[m.home] += w[i] * mu * H * def[m.away];
+        num[m.away] += w[i] * sig[i].a; den[m.away] += w[i] * mu * def[m.home];
       });
       teams.forEach((t) => (att[t] = num[t] / den[t]));
       // defence update (def > 1 = concedes more)
       teams.forEach((t) => { const p = priors[t] || { att: 1, def: 1 }; num[t] = n0 * p.def; den[t] = n0; });
       played.forEach((m, i) => {
-        num[m.away] += w[i] * m.hg; den[m.away] += w[i] * mu * H * att[m.home];
-        num[m.home] += w[i] * m.ag; den[m.home] += w[i] * mu * att[m.away];
+        num[m.away] += w[i] * sig[i].h; den[m.away] += w[i] * mu * H * att[m.home];
+        num[m.home] += w[i] * sig[i].a; den[m.home] += w[i] * mu * att[m.away];
       });
       teams.forEach((t) => (def[t] = num[t] / den[t]));
       // home advantage update
       let hn = 0, hd = 0;
-      played.forEach((m, i) => { hn += w[i] * m.hg; hd += w[i] * mu * att[m.home] * def[m.away]; });
+      played.forEach((m, i) => { hn += w[i] * sig[i].h; hd += w[i] * mu * att[m.home] * def[m.away]; });
       H = hn / hd;
       // normalise: geometric mean of att and def = 1 (keeps μ meaningful)
       const gA = Math.exp(teams.reduce((s, t) => s + Math.log(att[t]), 0) / teams.length);
       const gD = Math.exp(teams.reduce((s, t) => s + Math.log(def[t]), 0) / teams.length);
       teams.forEach((t) => { att[t] /= gA; def[t] /= gD; });
     }
-    return { att, def, mu, home: H, teams, sampleSize: played.length };
+    return { att, def, mu, home: H, teams, sampleSize: played.length, xgMatches, xgBlend: xgMatches ? xgBlend : 0 };
   }
 
   /** Build the PL model: last season + this season, promoted sides get last year's promoted trio as prior. */
-  function buildPLModel(data, asOf) {
-    const base = fitPoisson(data.pl25, asOf);
+  function buildPLModel(data, asOf, xgBlend = CONFIG.poisson.xgBlend) {
+    const base = fitPoisson(data.pl25, asOf, {}, xgBlend);
     const promotedPrior = {
       att: PROMOTED_2025.reduce((s, t) => s + base.att[t], 0) / PROMOTED_2025.length,
       def: PROMOTED_2025.reduce((s, t) => s + base.def[t], 0) / PROMOTED_2025.length,
     };
     const priors = {};
     PROMOTED_2026.forEach((t) => (priors[t] = promotedPrior));
-    const fit = fitPoisson([...data.pl25, ...data.pl], asOf, priors);
+    const fit = fitPoisson([...data.pl25, ...data.pl], asOf, priors, xgBlend);
     return { ...fit, promotedPrior };
   }
 
@@ -330,6 +356,8 @@ const FM = (() => {
   function avgGoals(matches) { const p = matches.filter((m) => m.played); return p.reduce((s, m) => s + m.hg + m.ag, 0) / Math.max(1, p.length); }
   async function buildContext() {
     const data = await loadAll();
+    const xg = await loadXG([2025, 2026]);
+    const xgJoined = attachXG([...data.pl25, ...data.pl], xg);
     const asOf = new Date();
     const { elo, history } = computeElo([...data.pl, ...data.ucl]);
     const plModel = buildPLModel(data, asOf);
@@ -337,7 +365,7 @@ const FM = (() => {
       pl: avgGoals([...data.pl25, ...data.pl]),
       ucl: avgGoals([...data.ucl25.filter((m) => m.round <= 8), ...data.ucl]), // league phase only
     };
-    return { data, elo, eloHistory: history, plModel, avgTotal, asOf };
+    return { data, elo, eloHistory: history, plModel, avgTotal, asOf, xgJoined };
   }
 
   /* ---------- Formatting helpers ---------- */
@@ -345,5 +373,6 @@ const FM = (() => {
   const odds = (o) => (o >= 100 ? o.toFixed(0) : o.toFixed(2));
   const fmtDate = (d, opts) => d.toLocaleString(undefined, opts || { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-  return { CONFIG, SEED_ELO, PROMOTED_2026, loadAll, teamsOf, table, computeElo, fitPoisson, buildPLModel, predict, bookmaker, edge, simulate, buildContext, pct, odds, fmtDate, eloExpected };
+  return { CONFIG, SEED_ELO, PROMOTED_2026, loadAll, loadJSON, loadXG, attachXG, normalise, teamsOf, table, computeElo, fitPoisson, buildPLModel, predict, bookmaker, edge, simulate, buildContext, pct, odds, fmtDate, eloExpected, eloLambdas, scoreGrid, marketsFromGrid };
 })();
+if (typeof module !== "undefined") module.exports = FM;
