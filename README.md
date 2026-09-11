@@ -5,10 +5,10 @@ Prediction models for the 2026-27 Champions League and Premier League. A static 
 ## Run it
 
 ```bash
-python3 -m http.server 8199
+python3 -m http.server 8399
 ```
 
-Then open http://localhost:8199. (Any static server works; the pages load `data/*.json` with `fetch`, so opening the HTML files directly from disk won't.)
+Then open http://localhost:8399. (Any static server works; the pages load `data/*.json` with `fetch`, so opening the HTML files directly from disk won't.)
 
 ## What's here
 
